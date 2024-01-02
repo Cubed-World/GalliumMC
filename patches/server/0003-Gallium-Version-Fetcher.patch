@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Pancakse <pancakseyt@gmail.com>
+Date: Mon, 1 Jan 2024 16:37:08 -0700
+Subject: [PATCH] Gallium Version Fetcher
+
+
+diff --git a/src/main/java/xyz/cubedworld/gallium/GalliumVersionFetcher.java b/src/main/java/xyz/cubedworld/gallium/GalliumVersionFetcher.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9e4fafa5e4df2c9629b691a0c70371c4608bfe30
+--- /dev/null
++++ b/src/main/java/xyz/cubedworld/gallium/GalliumVersionFetcher.java
+@@ -0,0 +1,18 @@
++package xyz.cubedworld.gallium;
++
++import com.destroystokyo.paper.util.VersionFetcher;
++import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.format.NamedTextColor;
++import org.jetbrains.annotations.NotNull;
++
++public class GalllumVersionFetcher implements VersionFetcher {
++    @Override
++    public long getCacheTime() {
++        return -1;
++    }
++
++    @Override
++    public @NotNull Component getVersionMessage(@NotNull String serverVersion) {
++        return Component.text("Galllum).append(Component.text(serverVersion, NamedTextColor.GREEN));
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+index 99ecf59b25e67b9203ed35fefc96879e40875c59..c137b111b92bff0f2920627d183ff4036fd603bb 100644
+--- a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
++++ b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+@@ -433,7 +433,7 @@ public final class CraftMagicNumbers implements UnsafeValues {
+ 
+     @Override
+     public com.destroystokyo.paper.util.VersionFetcher getVersionFetcher() {
+-        return new com.destroystokyo.paper.PaperVersionFetcher(); // Purpur
++        return new xyz.cubedworld.gallium.GalllumVersionFetcher(); // Purpur // Gallium
+     }
+ 
+     @Override
