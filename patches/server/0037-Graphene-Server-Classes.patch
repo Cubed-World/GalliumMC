@@ -1,0 +1,191 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: satvrn <pastawho@gmail.com>
+Date: Wed, 18 Oct 2023 09:06:03 -0700
+Subject: [PATCH] Graphene: Server Classes
+
+
+diff --git a/src/main/java/me/satvrn/random/FastRandom.java b/src/main/java/me/satvrn/random/FastRandom.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f4d18dee6098183a4902b7657e4c7bacf8b72044
+--- /dev/null
++++ b/src/main/java/me/satvrn/random/FastRandom.java
+@@ -0,0 +1,28 @@
++package me.satvrn.random;
++
++import java.util.Random;
++
++import net.minecraft.world.level.levelgen.RandomSupport;
++import net.minecraft.world.level.levelgen.Xoroshiro128PlusPlus;
++
++public class FastRandom extends Random {
++    private Xoroshiro128PlusPlus source;
++
++    public FastRandom() {
++        super();
++    }
++
++    public FastRandom(long seed) {
++        super(seed);
++    }
++
++    @Override
++    public long nextLong() {
++        return this.source.nextLong();
++    }
++
++    @Override
++    public void setSeed(long seed) {
++        this.source = new Xoroshiro128PlusPlus(RandomSupport.upgradeSeedTo128bit(seed));
++    }
++}
+diff --git a/src/main/java/me/steinborn/krypton/network/VarintByteDecoder.java b/src/main/java/me/steinborn/krypton/network/VarintByteDecoder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..1211d9859199fa0566700e5f689fc83b23889cfe
+--- /dev/null
++++ b/src/main/java/me/steinborn/krypton/network/VarintByteDecoder.java
+@@ -0,0 +1,65 @@
++package me.steinborn.krypton.network;
++
++/**
++ * Credits to the Andrew Steinborn for the original code (from Krypton): https://github.com/astei/krypton
++ * No changes made beyond changing mappings.
++ */
++
++import io.netty.util.ByteProcessor;
++
++public class VarintByteDecoder implements ByteProcessor {
++
++    private static final int MAXIMUM_VARINT_BYTE_SIZE = Boolean.getBoolean("krypton.permit-oversized-packets")
++            ? 5 : 3;
++
++    private int readVarint;
++    private int bytesRead;
++    private DecodeResult result = DecodeResult.TOO_SHORT;
++
++    @Override
++    public boolean process(byte k) {
++        if (k == 0 && bytesRead == 0) {
++            // tentatively say it's invalid, but there's a possibility of redemption
++            result = DecodeResult.RUN_OF_ZEROES;
++            return true;
++        }
++        if (result == DecodeResult.RUN_OF_ZEROES) {
++            return false;
++        }
++        readVarint |= (k & 0x7F) << bytesRead++ * 7;
++        if (bytesRead > MAXIMUM_VARINT_BYTE_SIZE) {
++            result = DecodeResult.TOO_BIG;
++            return false;
++        }
++        if ((k & 0x80) != 128) {
++            result = DecodeResult.SUCCESS;
++            return false;
++        }
++        return true;
++    }
++
++    public int getReadVarint() {
++        return readVarint;
++    }
++
++    public int getBytesRead() {
++        return bytesRead;
++    }
++
++    public DecodeResult getResult() {
++        return result;
++    }
++
++    public void reset() {
++        readVarint = 0;
++        bytesRead = 0;
++        result = DecodeResult.TOO_SHORT;
++    }
++
++    public enum DecodeResult {
++        SUCCESS,
++        TOO_SHORT,
++        TOO_BIG,
++        RUN_OF_ZEROES
++    }
++}
+diff --git a/src/main/java/me/steinborn/krypton/network/util/QuietDecoderException.java b/src/main/java/me/steinborn/krypton/network/util/QuietDecoderException.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d55a91fb21521b246de8e751d71fffb7ac59f648
+--- /dev/null
++++ b/src/main/java/me/steinborn/krypton/network/util/QuietDecoderException.java
+@@ -0,0 +1,24 @@
++package me.steinborn.krypton.network.util;
++
++/**
++ * Credits to the Andrew Steinborn for the original code (from Krypton): https://github.com/astei/krypton
++ * No changes made beyond changing mappings.
++ */
++
++import io.netty.handler.codec.DecoderException;
++
++/**
++ * A special-purpose exception thrown when we want to indicate an error decoding but do not want
++ * to see a large stack trace in logs.
++ */
++public class QuietDecoderException extends DecoderException {
++
++    public QuietDecoderException(String message) {
++        super(message);
++    }
++
++    @Override
++    public synchronized Throwable fillInStackTrace() {
++        return this;
++    }
++}
+diff --git a/src/main/java/me/steinborn/krypton/network/util/VarIntUtil.java b/src/main/java/me/steinborn/krypton/network/util/VarIntUtil.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..4243c1401405ff4868ab063cc95ba1c3a5feae3e
+--- /dev/null
++++ b/src/main/java/me/steinborn/krypton/network/util/VarIntUtil.java
+@@ -0,0 +1,25 @@
++package me.steinborn.krypton.network.util;
++
++/**
++ * Credits to the Andrew Steinborn for the original code (from Krypton): https://github.com/astei/krypton
++ * No changes made beyond changing mappings.
++ */
++
++/**
++ * Maps VarInt byte sizes to a lookup table corresponding to the number of bits in the integer,
++ * from zero to 32.
++ */
++public class VarIntUtil {
++    private static final int[] VARINT_EXACT_BYTE_LENGTHS = new int[33];
++
++    static {
++        for (int i = 0; i <= 32; ++i) {
++            VARINT_EXACT_BYTE_LENGTHS[i] = (int) Math.ceil((31d - (i - 1)) / 7d);
++        }
++        VARINT_EXACT_BYTE_LENGTHS[32] = 1; // Special case for 0.
++    }
++
++    public static int getVarIntLength(int value) {
++        return VARINT_EXACT_BYTE_LENGTHS[Integer.numberOfLeadingZeros(value)];
++    }
++}
+diff --git a/src/main/java/me/steinborn/krypton/network/util/WellKnownExceptions.java b/src/main/java/me/steinborn/krypton/network/util/WellKnownExceptions.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d89b86166f56b9932be8b220b2382d96113aa8f7
+--- /dev/null
++++ b/src/main/java/me/steinborn/krypton/network/util/WellKnownExceptions.java
+@@ -0,0 +1,13 @@
++package me.steinborn.krypton.network.util;
++
++/**
++ * Credits to the Andrew Steinborn for the original code (from Krypton): https://github.com/astei/krypton
++ * No changes made beyond changing mappings.
++ */
++
++public enum WellKnownExceptions {
++    ;
++
++    public static final QuietDecoderException BAD_LENGTH_CACHED = new QuietDecoderException("Bad packet length");
++    public static final QuietDecoderException VARINT_BIG_CACHED = new QuietDecoderException("VarInt too big");
++}
