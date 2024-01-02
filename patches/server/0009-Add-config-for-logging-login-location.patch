@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Simon Gardling <titaniumtown@gmail.com>
+Date: Wed, 20 Jan 2021 16:36:48 -0500
+Subject: [PATCH] Add config for logging login location
+
+Original code by YatopiaMC, licensed under MIT
+You can find the original code on https://github.com/YatopiaMC/Yatopia
+
+diff --git a/src/main/java/dev/etil/mirai/MiraiConfig.java b/src/main/java/dev/etil/mirai/MiraiConfig.java
+index 54cab7abec16b0c7155fc494f317119f17804d49..5f3ba184fae5170425cfdbd95150ed00c3f3433b 100644
+--- a/src/main/java/dev/etil/mirai/MiraiConfig.java
++++ b/src/main/java/dev/etil/mirai/MiraiConfig.java
+@@ -131,4 +131,10 @@ public class MiraiConfig {
+         return config.getStringList(key);
+     }
+ 
++    public static boolean logPlayerLoginLoc;
++    private static void logPlayerLoc() {
++        logPlayerLoginLoc = getBoolean("log-player-login-location", true,
++                                "Whether or not player login location should be written in logs.");
++    }
++
+ }
+\ No newline at end of file
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index 70a130ad9ae09e9606e01a7e08fecdf0a4018c79..c0194111ce5d13109022ec6d3746c058640aed59 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -457,7 +457,13 @@ public abstract class PlayerList {
+         // Paper end
+         org.purpurmc.purpur.task.BossBarTask.addToAll(player); // Purpur
+         // CraftBukkit - Moved from above, added world
+-        PlayerList.LOGGER.info("{}[{}] logged in with entity id {} at ([{}]{}, {}, {})", player.getName().getString(), s1, player.getId(), worldserver1.serverLevelData.getLevelName(), player.getX(), player.getY(), player.getZ());
++        // Yatopia start - configurable logging of player login location
++        if (dev.etil.mirai.MiraiConfig.logPlayerLoginLoc) {
++            PlayerList.LOGGER.info("{}[{}] logged in with entity id {} at ([{}]{}, {}, {})", player.getName().getString(), s1, player.getId(), worldserver1.serverLevelData.getLevelName(), player.getX(), player.getY(), player.getZ());
++        } else {
++            PlayerList.LOGGER.info("{}[{}] logged in with entity id {}", player.getName().getString(), s1, player.getId());
++        }
++        // Yatopia end - configurable logging of player login location
+     }
+ 
+     public void updateEntireScoreboard(ServerScoreboard scoreboard, ServerPlayer player) {
